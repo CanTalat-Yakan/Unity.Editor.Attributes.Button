@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,55 +13,72 @@ namespace UnityEssentials
     public static class ButtonEditor
     {
         public static CoroutineHelper s_coroutineHelper;
+        private static List<List<(ButtonAttribute attribute, MethodInfo method)>> _buttonGroups = new();
 
         [InitializeOnLoadMethod]
         public static void Initialization()
         {
-            InspectorHook.AddInitialization(OnInspectorGUI);
+            InspectorHook.AddInitialization(OnInitialize);
+            InspectorHook.AddProcessMethod(OnProcessMethod);
         }
 
-        public static void OnInspectorGUI()
+        public static void OnInitialize()
         {
             var target = InspectorHook.Target;
-            if (target == null)
-                return;
+            if (target == null) return;
 
-            var buttons = new List<(ButtonAttribute attribute, System.Reflection.MethodInfo method)>();
+            BuildGroupHierarchy(target);
+        }
+
+        public static void OnProcessMethod(MethodInfo method)
+        {
+            var target = InspectorHook.Target;
+            if (target == null) return;
+
+            foreach (var group in _buttonGroups)
+                DrawGroup(group, target);
+
+            _buttonGroups.Clear();
+        }
+
+        public static void BuildGroupHierarchy(MonoBehaviour target)
+        {
+            _buttonGroups.Clear();
+
+            var currentGroup = new List<(ButtonAttribute attribute, MethodInfo method)>();
             var methods = target.GetType().GetMethods();
 
             foreach (var method in methods)
             {
                 var attribute = method.GetCustomAttributes(typeof(ButtonAttribute), true)
                     .FirstOrDefault() as ButtonAttribute;
-
-                if (attribute == null)
+                if (attribute == null) 
                     continue;
 
-                if (string.IsNullOrEmpty(attribute.Label))
-                    attribute.Label = method.Name;
+                attribute.Label ??= method.Name;
 
-                if (attribute.Layout == ButtonLayout.Begin && buttons.Count > 0)
+                if (attribute.Layout == ButtonLayout.Begin && currentGroup.Count > 0)
                 {
-                    DrawGroup(buttons, target);
-                    buttons.Clear();
+                    _buttonGroups.Add(new List<(ButtonAttribute, MethodInfo)>(currentGroup));
+                    currentGroup.Clear();
                 }
 
-                buttons.Add((attribute, method));
+                currentGroup.Add((attribute, method));
 
                 if (attribute.Layout == ButtonLayout.End)
                 {
-                    DrawGroup(buttons, target);
-                    buttons.Clear();
+                    _buttonGroups.Add(new List<(ButtonAttribute, MethodInfo)>(currentGroup));
+                    currentGroup.Clear();
                 }
             }
 
-            if (buttons.Count > 0)
-                DrawGroup(buttons, target);
+            if (currentGroup.Count > 0)
+                _buttonGroups.Add(new List<(ButtonAttribute, MethodInfo)>(currentGroup));
         }
 
-        public static void DrawGroup(List<(ButtonAttribute attribute, System.Reflection.MethodInfo method)> group, MonoBehaviour script)
+        public static void DrawGroup(List<(ButtonAttribute attribute, MethodInfo method)> group, MonoBehaviour script)
         {
-            if (group.Count == 0)
+            if (group.Count == 0) 
                 return;
 
             int totalWeight = group.Sum(button => button.attribute.Weight);
@@ -84,7 +102,7 @@ namespace UnityEssentials
                 EditorGUILayout.EndHorizontal();
         }
 
-        public static void Invoke(MonoBehaviour script, System.Reflection.MethodInfo method)
+        public static void Invoke(MonoBehaviour script, MethodInfo method)
         {
             if (method.ReturnType == typeof(IEnumerator))
             {
