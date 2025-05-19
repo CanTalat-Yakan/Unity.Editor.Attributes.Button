@@ -14,7 +14,11 @@ namespace UnityEssentials
         public static CoroutineHelper s_coroutineHelper;
 
         [InitializeOnLoadMethod]
-        public static void Initialization() => InspectorHook.Add(OnInspectorGUI);
+        public static void Initialization()
+        {
+            InspectorHook.AddInitialization(OnInspectorGUI);
+        }
+
         public static void OnInspectorGUI()
         {
             var target = InspectorHook.Target;
