@@ -25,7 +25,8 @@ namespace UnityEssentials
         public static void OnInitialize()
         {
             var target = InspectorHook.Target;
-            if (target == null) return;
+            if (target == null)
+                return;
 
             BuildGroupHierarchy(target);
         }
@@ -33,7 +34,8 @@ namespace UnityEssentials
         public static void OnProcessMethod(MethodInfo method)
         {
             var target = InspectorHook.Target;
-            if (target == null) return;
+            if (target == null)
+                return;
 
             foreach (var group in _buttonGroups)
                 DrawGroup(group, target);
@@ -52,7 +54,7 @@ namespace UnityEssentials
             {
                 var attribute = method.GetCustomAttributes(typeof(ButtonAttribute), true)
                     .FirstOrDefault() as ButtonAttribute;
-                if (attribute == null) 
+                if (attribute == null)
                     continue;
 
                 attribute.Label ??= method.Name;
@@ -78,7 +80,7 @@ namespace UnityEssentials
 
         public static void DrawGroup(List<(ButtonAttribute attribute, MethodInfo method)> group, MonoBehaviour script)
         {
-            if (group.Count == 0) 
+            if (group.Count == 0)
                 return;
 
             int totalWeight = group.Sum(button => button.attribute.Weight);
@@ -105,15 +107,17 @@ namespace UnityEssentials
         public static void Invoke(MonoBehaviour script, MethodInfo method)
         {
             if (method.ReturnType == typeof(IEnumerator))
-            {
-                if (s_coroutineHelper == null)
-                {
-                    var go = new GameObject("CoroutineHelper") { hideFlags = HideFlags.HideAndDontSave };
-                    s_coroutineHelper = go.AddComponent<CoroutineHelper>();
-                }
-                s_coroutineHelper.StartCoroutine((IEnumerator)method.Invoke(script, null));
-            }
+                GetCoroutineHelper().StartCoroutine((IEnumerator)method.Invoke(script, null));
             else method.Invoke(script, null);
+        }
+
+        public static CoroutineHelper GetCoroutineHelper()
+        {
+            if (s_coroutineHelper == null)
+                s_coroutineHelper = new GameObject("CoroutineHelper") { hideFlags = HideFlags.HideAndDontSave }
+                    .AddComponent<CoroutineHelper>();
+
+            return s_coroutineHelper;
         }
     }
 }
