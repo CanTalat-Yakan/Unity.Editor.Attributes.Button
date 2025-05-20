@@ -19,7 +19,7 @@ namespace UnityEssentials
         public int Weight { get; }
         public int Height { get; }
 
-        public ButtonAttribute(string label = null, ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 0)
+        public ButtonAttribute(string label = null, ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 18)
         {
             Label = label;
             Layout = layout;
