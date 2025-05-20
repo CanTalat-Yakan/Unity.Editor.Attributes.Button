@@ -99,9 +99,7 @@ namespace UnityEssentials
 
             EditorGUILayout.Space(8);
 
-            bool useHorizontal = group.Count > 1 ||
-                group.Any(button => button.Attribute.Layout != ButtonLayout.None);
-
+            bool useHorizontal = group.Count > 1 || group.Any(button => button.Attribute.Layout != ButtonLayout.None);
             using (new HorizontalGroup(useHorizontal))
             {
                 float totalWeight = group.Sum(button => button.Attribute.Weight);
