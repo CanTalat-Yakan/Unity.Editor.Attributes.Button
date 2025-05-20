@@ -64,7 +64,6 @@ namespace UnityEssentials
 
                 attribute.Label ??= ObjectNames.NicifyVariableName(method.Name);
 
-                // Handle group transitions
                 if (attribute.Layout == ButtonLayout.Begin && currentGroup.Count > 0)
                 {
                     _buttonGroups.Add(currentGroup);
