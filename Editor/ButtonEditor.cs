@@ -13,217 +13,206 @@ namespace UnityEssentials
 
     public static class ButtonEditor
     {
+        public readonly struct HorizontalGroup : IDisposable
+        {
+            readonly bool _isActive;
+
+            public HorizontalGroup(bool shouldUse)
+            {
+                if (_isActive = shouldUse)
+                    GUILayout.BeginHorizontal();
+            }
+
+            public void Dispose()
+            {
+                if (_isActive)
+                    GUILayout.EndHorizontal();
+            }
+        }
+
         private class ParameterState
         {
             public bool IsExpanded;
             public object[] ParameterValues;
         }
 
-        public static CoroutineHelper s_coroutineHelper;
-        private static List<List<(ButtonAttribute attribute, MethodInfo method)>> _buttonGroups = new();
-        private static Dictionary<(MonoBehaviour, MethodInfo), ParameterState> _parameterStates = new();
+        private static CoroutineHelper _coroutineHelper;
+        private static readonly List<List<(ButtonAttribute Attribute, MethodInfo Method)>> _buttonGroups = new();
+        private static readonly Dictionary<(MonoBehaviour, MethodInfo), ParameterState> _parameterStates = new();
 
         [InitializeOnLoadMethod]
-        public static void Initialization()
+        public static void Initialize()
         {
             InspectorHook.AddInitialization(OnInitialize);
-            InspectorHook.AddProcessMethod(OnProcessMethod);
+            InspectorHook.AddProcessMethod(OnMethodProcessed);
         }
 
-        public static void OnInitialize()
-        {
-            var target = InspectorHook.Target;
-            if (target == null) return;
-            BuildGroupHierarchy(target);
-        }
-
-        public static void OnProcessMethod(MethodInfo method)
-        {
-            var target = InspectorHook.Target;
-            if (target == null) return;
-
-            foreach (var group in _buttonGroups)
-                DrawGroup(group, target);
-
-            _buttonGroups.Clear();
-        }
-
-        public static void BuildGroupHierarchy(MonoBehaviour target)
+        private static void OnInitialize()
         {
             _buttonGroups.Clear();
-            var currentGroup = new List<(ButtonAttribute attribute, MethodInfo method)>();
-            var methods = target.GetType().GetMethods();
+
+            if (InspectorHook.Target == null)
+                return;
+
+            InspectorHook.GetAllMethods(out var methods);
+
+            var currentGroup = new List<(ButtonAttribute, MethodInfo)>();
 
             foreach (var method in methods)
             {
-                var attribute = method.GetCustomAttributes(typeof(ButtonAttribute), true)
-                                     .FirstOrDefault() as ButtonAttribute;
-                if (attribute == null) continue;
+                if (method.GetCustomAttribute<ButtonAttribute>() is not ButtonAttribute attribute) continue;
 
-                attribute.Label ??= method.Name;
+                attribute.Label ??= ObjectNames.NicifyVariableName(method.Name);
 
+                // Handle group transitions
                 if (attribute.Layout == ButtonLayout.Begin && currentGroup.Count > 0)
                 {
-                    _buttonGroups.Add(new List<(ButtonAttribute, MethodInfo)>(currentGroup));
-                    currentGroup.Clear();
+                    _buttonGroups.Add(currentGroup);
+                    currentGroup = new();
                 }
 
                 currentGroup.Add((attribute, method));
 
                 if (attribute.Layout == ButtonLayout.End)
                 {
-                    _buttonGroups.Add(new List<(ButtonAttribute, MethodInfo)>(currentGroup));
-                    currentGroup.Clear();
+                    _buttonGroups.Add(currentGroup);
+                    currentGroup = new();
                 }
             }
 
             if (currentGroup.Count > 0)
-                _buttonGroups.Add(new List<(ButtonAttribute, MethodInfo)>(currentGroup));
+                _buttonGroups.Add(currentGroup);
         }
 
-        public static void DrawGroup(List<(ButtonAttribute attribute, MethodInfo method)> group, MonoBehaviour script)
+        private static void OnMethodProcessed(MethodInfo method)
         {
-            if (group.Count == 0) return;
+            foreach (var group in _buttonGroups)
+                RenderButtonGroup(group, InspectorHook.Target);
 
-            float width = EditorGUIUtility.currentViewWidth - 30;
-            int totalWeight = group.Sum(button => button.attribute.Weight);
+            _buttonGroups.Clear();
+        }
+
+        private static void RenderButtonGroup(List<(ButtonAttribute Attribute, MethodInfo Method)> group, MonoBehaviour target)
+        {
+            if (group.Count == 0)
+                return;
 
             EditorGUILayout.Space(8);
-            if (group.Count > 1) EditorGUILayout.BeginHorizontal();
 
-            foreach (var (attribute, method) in group)
+            bool useHorizontal = group.Count > 1 ||
+                group.Any(button => button.Attribute.Layout != ButtonLayout.None);
+
+            using (new HorizontalGroup(useHorizontal))
             {
-                var buttonWidth = width * (attribute.Weight / (float)totalWeight);
-                var buttonHeight = attribute.Height;
-
-                var parameters = method.GetParameters();
-                if (parameters.Length > 0)
-                    DrawParameterizedButton(script, method, attribute, parameters, buttonWidth, buttonHeight);
-                else
-                    DrawSimpleButton(script, method, attribute, buttonWidth, buttonHeight);
+                float totalWeight = group.Sum(button => button.Attribute.Weight);
+                foreach (var (attribute, method) in group)
+                {
+                    float width = (EditorGUIUtility.currentViewWidth - 30) * (attribute.Weight / totalWeight) - group.Count * 1;
+                    if (method.GetParameters().Length > 0)
+                        DrawParameterButton(target, method, attribute, width);
+                    else
+                        DrawSimpleButton(target, method, attribute, width);
+                }
             }
-
-            if (group.Count > 1) EditorGUILayout.EndHorizontal();
         }
 
-        private static void DrawParameterizedButton(MonoBehaviour script, MethodInfo method, ButtonAttribute attribute, ParameterInfo[] parameters, float buttonWidth, float buttonHeight)
+        private static void DrawSimpleButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
         {
-            var key = (script, method);
+            var rect = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
+            if (GUI.Button(rect, attribute.Label))
+                InvokeMethod(target, method);
+        }
+
+        private static void DrawParameterButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
+        {
+            var key = (target, method);
             if (!_parameterStates.TryGetValue(key, out var state))
-            {
-                state = new ParameterState
-                {
-                    IsExpanded = false,
-                    ParameterValues = parameters.Select(p => p.HasDefaultValue ? p.DefaultValue :
-                        (p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null)).ToArray()
-                };
-                _parameterStates[key] = state;
-            }
+                _parameterStates[key] = state = CreateParameterState(method);
 
             EditorGUILayout.BeginVertical();
-
-            // Get control rect with specified width and height using GUILayout
-            Rect rect = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight));
-            float foldoutWidth = 16;
-            float foldoutCorrection = 13;
-            Rect foldoutRect = new Rect(rect.x + foldoutCorrection, rect.y, foldoutWidth, EditorGUIUtility.singleLineHeight);
-            state.IsExpanded = EditorGUI.Foldout(foldoutRect, state.IsExpanded, GUIContent.none, true, EditorStyles.foldout);
-
-            float buttonCorrection = rect.width / 180;
-            Rect buttonRect = new Rect(rect.x + foldoutWidth, rect.y, rect.width - foldoutWidth + buttonCorrection + 1, rect.height);
-            if (GUI.Button(buttonRect, attribute.Label))
-                InvokeWithParameters(script, method, state.ParameterValues);
-
-            // Draw parameters in indented box
-            if (state.IsExpanded)
             {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.BeginVertical("Box");
-                DrawParameterFields(parameters, state.ParameterValues);
-                EditorGUILayout.EndVertical();
-                EditorGUI.indentLevel--;
-            }
+                if (RenderButtonHeader(attribute, width, state, out var isExpanded))
+                    InvokeMethod(target, method, state.ParameterValues);
 
+                if (state.IsExpanded)
+                    RenderParameterFields(method.GetParameters(), state.ParameterValues);
+            }
             EditorGUILayout.EndVertical();
         }
 
-        private static void DrawParameterFields(ParameterInfo[] parameters, object[] values)
+        private static ParameterState CreateParameterState(MethodInfo method)
         {
-            for (int i = 0; i < parameters.Length; i++)
+            var parameters = method.GetParameters();
+            return new ParameterState
             {
-                var param = parameters[i];
-                var type = param.ParameterType;
-                var label = new GUIContent(ObjectNames.NicifyVariableName(param.Name));
-
-                try
-                {
-                    if (type == typeof(int))
-                        values[i] = EditorGUILayout.IntField(label, (int)values[i]);
-                    else if (type == typeof(float))
-                        values[i] = EditorGUILayout.FloatField(label, (float)values[i]);
-                    else if (type == typeof(bool))
-                        values[i] = EditorGUILayout.Toggle(label, (bool)values[i]);
-                    else if (type == typeof(string))
-                        values[i] = EditorGUILayout.TextField(label, (string)values[i]);
-                    else if (type.IsEnum)
-                        values[i] = EditorGUILayout.EnumPopup(label, (Enum)values[i]);
-                    else if (typeof(UnityEngine.Object).IsAssignableFrom(type))
-                        values[i] = EditorGUILayout.ObjectField(label, (UnityEngine.Object)values[i], type, true);
-                    else
-                        EditorGUILayout.LabelField(label, $"Unsupported type: {type.Name}");
-                }
-                catch (Exception)
-                {
-                    values[i] = type.IsValueType ? Activator.CreateInstance(type) : null;
-                }
-            }
+                ParameterValues = parameters.Select(parameter => parameter.HasDefaultValue
+                    ? parameter.DefaultValue
+                    : parameter.ParameterType.IsValueType
+                        ? Activator.CreateInstance(parameter.ParameterType)
+                        : null).ToArray()
+            };
         }
 
-        private static void DrawSimpleButton(MonoBehaviour script, MethodInfo method, ButtonAttribute attribute, float buttonWidth, float buttonHeight)
+        private static bool RenderButtonHeader(ButtonAttribute attribute, float width,
+            ParameterState state, out bool isExpaned)
         {
-            // Get control rect with specified width and height using GUILayout
-            Rect rect = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth), GUILayout.Height(buttonHeight));
-            rect.height = buttonHeight;
-            if (GUI.Button(rect, attribute.Label))
-                Invoke(script, method);
+            var rect = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
+            var foldoutRect = new Rect(rect.x + 13, rect.y, 16, EditorGUIUtility.singleLineHeight);
+            state.IsExpanded = EditorGUI.Foldout(foldoutRect, state.IsExpanded, GUIContent.none);
+
+            var buttonRect = new Rect(rect.x + 16, rect.y, rect.width - 16, rect.height);
+            isExpaned = GUI.Button(buttonRect, attribute.Label);
+
+            return isExpaned;
         }
 
-        public static void Invoke(MonoBehaviour script, MethodInfo method)
+        private static void RenderParameterFields(ParameterInfo[] parameters, object[] values)
+        {
+            EditorGUI.indentLevel++;
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                for (int i = 0; i < parameters.Length; i++)
+                    values[i] = RenderParameterField(parameters[i], values[i]);
+            }
+            EditorGUI.indentLevel--;
+        }
+
+        private static object RenderParameterField(ParameterInfo param, object value)
+        {
+            var fieldRect = EditorGUILayout.GetControlRect();
+            var label = ObjectNames.NicifyVariableName(param.Name);
+
+            return param.ParameterType switch
+            {
+                Type t when t == typeof(int) => EditorGUI.IntField(fieldRect, label, value as int? ?? default),
+                Type t when t == typeof(float) => EditorGUI.FloatField(fieldRect, label, value as float? ?? default),
+                Type t when t == typeof(bool) => EditorGUI.Toggle(fieldRect, label, value as bool? ?? false),
+                Type t when t == typeof(string) => EditorGUI.TextField(fieldRect, label, value as string ?? string.Empty),
+                Type t when t.IsEnum => EditorGUI.EnumPopup(fieldRect, label, value as Enum ?? (Enum)Activator.CreateInstance(t)),
+                Type t when typeof(UnityEngine.Object).IsAssignableFrom(t) => EditorGUI.ObjectField(fieldRect, label, value as UnityEngine.Object, t, true),
+                _ => default
+                //_ => EditorGUI.LabelField(fieldRect, label, $"Unsupported type: {param.ParameterType.Name}")
+            };
+        }
+
+        private static void InvokeMethod(MonoBehaviour target, MethodInfo method, params object[] parameters)
         {
             try
             {
-                if (method.ReturnType == typeof(IEnumerator))
-                    GetCoroutineHelper().StartCoroutine((IEnumerator)method.Invoke(script, null));
-                else
-                    method.Invoke(script, null);
+                var result = method.Invoke(target, parameters);
+                if (result is IEnumerator coroutine)
+                    GetCoroutineHelper().StartCoroutine(coroutine);
             }
-            catch (Exception e)
-            {
-                Debug.LogError($"Error invoking method {method.Name}: {e}");
-            }
+            catch (Exception ex) { Debug.LogError($"Error invoking {method.Name}: {ex.InnerException?.Message ?? ex.Message}"); }
         }
 
-        private static void InvokeWithParameters(MonoBehaviour script, MethodInfo method, object[] parameters)
+        private static CoroutineHelper GetCoroutineHelper()
         {
-            try
-            {
-                if (method.ReturnType == typeof(IEnumerator))
-                    GetCoroutineHelper().StartCoroutine((IEnumerator)method.Invoke(script, parameters));
-                else
-                    method.Invoke(script, parameters);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"Error invoking method {method.Name}: {e}");
-            }
-        }
-
-        public static CoroutineHelper GetCoroutineHelper()
-        {
-            if (s_coroutineHelper == null)
-                s_coroutineHelper = new GameObject("CoroutineHelper") { hideFlags = HideFlags.HideAndDontSave }
+            if (_coroutineHelper == null)
+                _coroutineHelper = new GameObject("CoroutineHelper") { hideFlags = HideFlags.HideAndDontSave }
                     .AddComponent<CoroutineHelper>();
-            return s_coroutineHelper;
+
+            return _coroutineHelper;
         }
     }
 }
