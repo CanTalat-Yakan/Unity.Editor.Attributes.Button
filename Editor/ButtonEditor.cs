@@ -169,7 +169,8 @@ namespace UnityEssentials
         private static void RenderParameterFields(ParameterInfo[] parameters, object[] values)
         {
             EditorGUI.indentLevel++;
-            using (new EditorGUILayout.VerticalScope("box"))
+            // Use EditorStyles.helpBox for a visible outline/border
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 for (int i = 0; i < parameters.Length; i++)
                     values[i] = RenderParameterField(parameters[i], values[i]);
@@ -180,7 +181,7 @@ namespace UnityEssentials
         private static object RenderParameterField(ParameterInfo param, object value)
         {
             var fieldPosition = EditorGUILayout.GetControlRect();
-            var label = ObjectNames.NicifyVariableName(param.Name);
+            var label = GUIContent.none;// ObjectNames.NicifyVariableName(param.Name);
 
             return param.ParameterType switch
             {
