@@ -107,8 +107,7 @@ namespace UnityEssentials
                     float width = (EditorGUIUtility.currentViewWidth - 30) * (attribute.Weight / totalWeight) - group.Count * 1;
                     if (method.GetParameters().Length > 0)
                         DrawParameterButton(target, method, attribute, width);
-                    else
-                        DrawSimpleButton(target, method, attribute, width);
+                    else DrawSimpleButton(target, method, attribute, width);
                 }
             }
         }
@@ -116,7 +115,9 @@ namespace UnityEssentials
         private static void DrawSimpleButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
         {
             var buttonPosition = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
-            if (GUI.Button(buttonPosition, attribute.Label))
+            var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
+            var keyboardClicked = InspectorFocusedHelper.ProcessKeyboardClick(buttonPosition);
+            if (buttonClicked || keyboardClicked)
                 InvokeMethod(target, method);
         }
 
@@ -150,8 +151,7 @@ namespace UnityEssentials
             };
         }
 
-        private static bool RenderButtonHeader(ButtonAttribute attribute, float width,
-            ParameterState state, out bool isExpaned)
+        private static bool RenderButtonHeader(ButtonAttribute attribute, float width, ParameterState state, out bool isExpanded)
         {
             var position = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
 
@@ -159,9 +159,11 @@ namespace UnityEssentials
             state.IsExpanded = EditorGUI.Foldout(foldoutPosition, state.IsExpanded, GUIContent.none);
 
             var buttonPosition = new Rect(position.x + 16, position.y, position.width - 16, position.height);
-            isExpaned = GUI.Button(buttonPosition, attribute.Label);
+            var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
+            var keyboardClicked = InspectorFocusedHelper.ProcessKeyboardClick(buttonPosition);
+            isExpanded = buttonClicked || keyboardClicked;
 
-            return isExpaned;
+            return isExpanded;
         }
 
         private static void RenderParameterFields(ParameterInfo[] parameters, object[] values)
