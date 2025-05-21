@@ -44,7 +44,7 @@ namespace UnityEssentials
         public static void Initialize()
         {
             InspectorHook.AddInitialization(OnInitialize);
-            InspectorHook.AddProcessMethod(OnMethodProcessed);
+            InspectorHook.AddProcessMethod(OnProcessMethod);
         }
 
         private static void OnInitialize()
@@ -83,7 +83,7 @@ namespace UnityEssentials
                 _buttonGroups.Add(currentGroup);
         }
 
-        private static void OnMethodProcessed(MethodInfo method)
+        private static void OnProcessMethod(MethodInfo method)
         {
             foreach (var group in _buttonGroups)
                 RenderButtonGroup(group, InspectorHook.Target);
