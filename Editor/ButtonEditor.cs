@@ -134,17 +134,12 @@ namespace UnityEssentials
                     InvokeMethod(target, method, state.ParameterValues);
 
                 if (state.IsExpanded)
-                {
                     using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(buttonWidth)))
-                    {
                         for (int i = 0; i < method.GetParameters().Length; i++)
                         {
-                            // Create a rect with consistent width
-                            Rect fieldRect = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth - 8));
-                            state.ParameterValues[i] = RenderParameterField(fieldRect, method.GetParameters()[i], state.ParameterValues[i]);
+                            var fieldPosition = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth - 8));
+                            state.ParameterValues[i] = RenderParameterField(fieldPosition, method.GetParameters()[i], state.ParameterValues[i]);
                         }
-                    }
-                }
             }
             EditorGUILayout.EndVertical();
         }
