@@ -115,8 +115,8 @@ namespace UnityEssentials
 
         private static void DrawSimpleButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
         {
-            var rect = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
-            if (GUI.Button(rect, attribute.Label))
+            var buttonPosition = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
+            if (GUI.Button(buttonPosition, attribute.Label))
                 InvokeMethod(target, method);
         }
 
@@ -153,12 +153,13 @@ namespace UnityEssentials
         private static bool RenderButtonHeader(ButtonAttribute attribute, float width,
             ParameterState state, out bool isExpaned)
         {
-            var rect = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
-            var foldoutRect = new Rect(rect.x + 13, rect.y, 16, EditorGUIUtility.singleLineHeight);
-            state.IsExpanded = EditorGUI.Foldout(foldoutRect, state.IsExpanded, GUIContent.none);
+            var position = EditorGUILayout.GetControlRect(GUILayout.Width(width + (width / 200)), GUILayout.Height(attribute.Height));
 
-            var buttonRect = new Rect(rect.x + 16, rect.y, rect.width - 16, rect.height);
-            isExpaned = GUI.Button(buttonRect, attribute.Label);
+            var foldoutPosition = new Rect(position.x + 13, position.y, 16, EditorGUIUtility.singleLineHeight);
+            state.IsExpanded = EditorGUI.Foldout(foldoutPosition, state.IsExpanded, GUIContent.none);
+
+            var buttonPosition = new Rect(position.x + 16, position.y, position.width - 16, position.height);
+            isExpaned = GUI.Button(buttonPosition, attribute.Label);
 
             return isExpaned;
         }
@@ -176,19 +177,18 @@ namespace UnityEssentials
 
         private static object RenderParameterField(ParameterInfo param, object value)
         {
-            var fieldRect = EditorGUILayout.GetControlRect();
+            var fieldPosition = EditorGUILayout.GetControlRect();
             var label = ObjectNames.NicifyVariableName(param.Name);
 
             return param.ParameterType switch
             {
-                Type t when t == typeof(int) => EditorGUI.IntField(fieldRect, label, value as int? ?? default),
-                Type t when t == typeof(float) => EditorGUI.FloatField(fieldRect, label, value as float? ?? default),
-                Type t when t == typeof(bool) => EditorGUI.Toggle(fieldRect, label, value as bool? ?? false),
-                Type t when t == typeof(string) => EditorGUI.TextField(fieldRect, label, value as string ?? string.Empty),
-                Type t when t.IsEnum => EditorGUI.EnumPopup(fieldRect, label, value as Enum ?? (Enum)Activator.CreateInstance(t)),
-                Type t when typeof(UnityEngine.Object).IsAssignableFrom(t) => EditorGUI.ObjectField(fieldRect, label, value as UnityEngine.Object, t, true),
+                Type t when t == typeof(int) => EditorGUI.IntField(fieldPosition, label, value as int? ?? default),
+                Type t when t == typeof(float) => EditorGUI.FloatField(fieldPosition, label, value as float? ?? default),
+                Type t when t == typeof(bool) => EditorGUI.Toggle(fieldPosition, label, value as bool? ?? false),
+                Type t when t == typeof(string) => EditorGUI.TextField(fieldPosition, label, value as string ?? string.Empty),
+                Type t when t.IsEnum => EditorGUI.EnumPopup(fieldPosition, label, value as Enum ?? (Enum)Activator.CreateInstance(t)),
+                Type t when typeof(UnityEngine.Object).IsAssignableFrom(t) => EditorGUI.ObjectField(fieldPosition, label, value as UnityEngine.Object, t, true),
                 _ => default
-                //_ => EditorGUI.LabelField(fieldRect, label, $"Unsupported type: {param.ParameterType.Name}")
             };
         }
 
