@@ -102,11 +102,12 @@ namespace UnityEssentials
             using (new HorizontalGroup(useHorizontal))
             {
                 float totalWeight = group.Sum(button => button.Attribute.Weight);
-                foreach (var (attribute, method) in group)
+                for (int i = 0; i < group.Count; i++)
                 {
-                    float width = (EditorGUIUtility.currentViewWidth - 30) * (attribute.Weight / totalWeight) - group.Count;
+                    var (attribute, method) = group[i];
+                    float width = (EditorGUIUtility.currentViewWidth - 30) * (attribute.Weight / totalWeight) + (i - group.Count);
                     if (method.GetParameters().Length > 0)
-                        DrawParameterButton(target, method, attribute, width);
+                        DrawParameterButton(target, method, attribute, width, i != 0);
                     else DrawSimpleButton(target, method, attribute, width);
                 }
             }
@@ -121,7 +122,7 @@ namespace UnityEssentials
                 InvokeMethod(target, method);
         }
 
-        private static void DrawParameterButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
+        private static void DrawParameterButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width, bool offsetFoldout)
         {
             var key = (target, method);
             if (!_parameterStates.TryGetValue(key, out var state))
@@ -130,7 +131,7 @@ namespace UnityEssentials
             EditorGUILayout.BeginVertical();
             {
                 float buttonWidth = width + (width / 200);
-                if (RenderButtonHeader(attribute, buttonWidth, state, out var isExpanded))
+                if (RenderButtonHeader(attribute, buttonWidth, state, offsetFoldout, out var isExpanded))
                     InvokeMethod(target, method, state.ParameterValues);
 
                 if (state.IsExpanded)
@@ -157,14 +158,15 @@ namespace UnityEssentials
             };
         }
 
-        private static bool RenderButtonHeader(ButtonAttribute attribute, float width, ParameterState state, out bool isExpanded)
+        private static bool RenderButtonHeader(ButtonAttribute attribute, float width, ParameterState state, bool offsetFoldout, out bool isExpanded)
         {
             var position = EditorGUILayout.GetControlRect(GUILayout.Width(width), GUILayout.Height(attribute.Height));
 
-            var foldoutPosition = new Rect(position.x + 13, position.y, 16, EditorGUIUtility.singleLineHeight);
+            var foldoutOffset = offsetFoldout ? 16f : 0f;
+            var foldoutPosition = new Rect(position.x + foldoutOffset - 3, position.y, 16, EditorGUIUtility.singleLineHeight);
             state.IsExpanded = EditorGUI.Foldout(foldoutPosition, state.IsExpanded, GUIContent.none);
 
-            var buttonPosition = new Rect(position.x + 16, position.y, position.width - 16, position.height);
+            var buttonPosition = new Rect(position.x + foldoutOffset, position.y, position.width - foldoutOffset, position.height);
             var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
             var keyboardClicked = InspectorFocusedHelper.ProcessKeyboardClick(buttonPosition);
             isExpanded = buttonClicked || keyboardClicked;
