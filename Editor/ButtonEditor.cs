@@ -64,12 +64,6 @@ namespace UnityEssentials
         private static readonly List<List<(ButtonAttribute Attribute, MethodInfo Method)>> _buttonGroups = new();
         private static readonly Dictionary<(MonoBehaviour, MethodInfo), ParameterState> _parameterStates = new();
 
-        /// <summary>
-        /// Initializes the system by registering initialization and processing methods with the InspectorHook.
-        /// </summary>
-        /// <remarks>This method is automatically invoked when the application loads, as indicated by the
-        /// <see cref="InitializeOnLoadMethodAttribute" />. It registers the <c>OnInitialize</c> method for
-        /// initialization and the <c>OnProcessMethod</c> method for processing.</remarks>
         [InitializeOnLoadMethod]
         public static void Initialize()
         {
