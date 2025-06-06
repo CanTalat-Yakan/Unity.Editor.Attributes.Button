@@ -121,6 +121,9 @@ namespace UnityEssentials
         /// <param name="method">The <see cref="MethodInfo"/> instance representing the method to process.</param>
         private static void OnProcessMethod(MethodInfo method)
         {
+            if (InspectorHook.IsMethodHandled(method))
+                return;
+
             foreach (var group in _buttonGroups)
                 RenderButtonGroup(group, InspectorHook.Target);
 
