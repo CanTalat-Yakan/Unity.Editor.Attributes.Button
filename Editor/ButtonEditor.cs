@@ -142,9 +142,14 @@ namespace UnityEssentials
                     width += i - group.Count; // Group correction
                     width += single ? 1 : 0; // Single button correction
 
-                    if (method.GetParameters().Length > 0)
-                        DrawParameterButton(target, method, attribute, width, i != 0);
-                    else DrawSimpleButton(target, method, attribute, width);
+                    // Wrap each button (and its parameter fields) in a vertical layout
+                    GUILayout.BeginVertical(GUILayout.Width(width));
+                    {
+                        if (method.GetParameters().Length > 0)
+                            DrawParameterButton(target, method, attribute, width, i != 0);
+                        else DrawSimpleButton(target, method, attribute, width);
+                    }
+                    GUILayout.EndVertical();
                 }
             }
             GUILayout.EndHorizontal();
