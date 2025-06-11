@@ -180,6 +180,7 @@ namespace UnityEssentials
             var buttonPosition = EditorGUILayout.GetControlRect(GUILayout.Width(width), GUILayout.Height(attribute.Height));
             var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
             var keyboardClicked = InspectorFocusedHelper.ProcessKeyboardClick(buttonPosition);
+
             if (buttonClicked || keyboardClicked)
                 InvokeMethod(target, method);
         }
