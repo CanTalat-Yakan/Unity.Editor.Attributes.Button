@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using Codice.Client.BaseCommands;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -25,30 +26,6 @@ namespace UnityEssentials
     /// buttons.</remarks>
     public static class ButtonEditor
     {
-        /// <summary>
-        /// Represents a disposable horizontal layout group for organizing UI elements in a horizontal arrangement.
-        /// </summary>
-        /// <remarks>When an instance of <see cref="HorizontalGroup"/> is created with <paramref
-        /// name="shouldUse"/> set to <see langword="true"/>,  it begins a horizontal layout group using <see
-        /// cref="GUILayout.BeginHorizontal"/>.  The group is automatically ended by calling <see
-        /// cref="GUILayout.EndHorizontal"/> when the instance is disposed.</remarks>
-        public readonly struct HorizontalGroup : IDisposable
-        {
-            readonly bool _isActive;
-
-            public HorizontalGroup(bool shouldUse)
-            {
-                if (_isActive = shouldUse)
-                    GUILayout.BeginHorizontal();
-            }
-
-            public void Dispose()
-            {
-                if (_isActive)
-                    GUILayout.EndHorizontal();
-            }
-        }
-
         /// <summary>
         /// Represents the state of a parameter, including its expansion status and associated values.
         /// </summary>
@@ -151,30 +128,28 @@ namespace UnityEssentials
             EditorGUILayout.Space(8);
 
             bool useHorizontal = group.Count > 1 || group.Any(button => button.Attribute.Layout != ButtonLayout.None);
-            using (new HorizontalGroup(useHorizontal))
+            bool single = group.Count == 1;
+            GUILayout.BeginHorizontal();
             {
                 float totalWeight = group.Sum(button => button.Attribute.Weight);
                 for (int i = 0; i < group.Count; i++)
                 {
                     var (attribute, method) = group[i];
-                    float width = (EditorGUIUtility.currentViewWidth - 30) * (attribute.Weight / totalWeight) + (i - group.Count);
+
+                    float width = EditorGUIUtility.currentViewWidth - 22; // Full width minus margins
+                    //width -= 13; // This is the margin for when the inspectors vertical scrollbar is visible
+                    width *= attribute.Weight / totalWeight; // Weight-based width distribution
+                    width += i - group.Count; // Group correction
+                    width += single ? 1 : 0; // Single button correction
+
                     if (method.GetParameters().Length > 0)
                         DrawParameterButton(target, method, attribute, width, i != 0);
                     else DrawSimpleButton(target, method, attribute, width);
                 }
             }
+            GUILayout.EndHorizontal();
         }
 
-        /// <summary>
-        /// Renders a simple button in the Unity Editor and invokes the specified method when the button is clicked.
-        /// </summary>
-        /// <remarks>This method creates a button in the Unity Editor using the specified label and
-        /// dimensions.  The button can be activated either by a mouse click or a keyboard interaction. When activated, 
-        /// the specified method is invoked on the provided target object.</remarks>
-        /// <param name="target">The <see cref="MonoBehaviour"/> instance on which the method will be invoked.</param>
-        /// <param name="method">The <see cref="MethodInfo"/> representing the method to invoke when the button is clicked.</param>
-        /// <param name="attribute">The <see cref="ButtonAttribute"/> that provides configuration for the button, such as its label and height.</param>
-        /// <param name="width">The width of the button, in pixels.</param>
         private static void DrawSimpleButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
         {
             var buttonPosition = EditorGUILayout.GetControlRect(GUILayout.Width(width), GUILayout.Height(attribute.Height));
@@ -185,39 +160,23 @@ namespace UnityEssentials
                 InvokeMethod(target, method);
         }
 
-        /// <summary>
-        /// Renders a button in the Unity Editor for invoking a method with parameters and provides a UI for editing the
-        /// method's parameters.
-        /// </summary>
-        /// <remarks>This method creates a button in the Unity Editor that, when clicked, invokes the
-        /// specified method on the target object. If the method has parameters, a foldout UI is rendered to allow the
-        /// user to input values for those parameters.</remarks>
-        /// <param name="target">The target <see cref="MonoBehaviour"/> instance on which the method will be invoked.</param>
-        /// <param name="method">The <see cref="MethodInfo"/> representing the method to be invoked.</param>
-        /// <param name="attribute">The <see cref="ButtonAttribute"/> that provides metadata for rendering the button.</param>
-        /// <param name="width">The width of the button and associated UI elements, in pixels.</param>
-        /// <param name="offsetFoldout">A boolean value indicating whether the foldout UI should be offset for better alignment.</param>
         private static void DrawParameterButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width, bool offsetFoldout)
         {
             var key = (target, method);
             if (!_parameterStates.TryGetValue(key, out var state))
                 _parameterStates[key] = state = CreateParameterState(method);
 
-            EditorGUILayout.BeginVertical();
-            {
-                float buttonWidth = width + (width / 200);
-                if (RenderButtonHeader(attribute, buttonWidth, state, offsetFoldout, out var isExpanded))
-                    InvokeMethod(target, method, state.ParameterValues);
+            float buttonWidth = width;
+            if (RenderButtonHeader(attribute, buttonWidth, state, offsetFoldout, out var isExpanded))
+                InvokeMethod(target, method, state.ParameterValues);
 
-                if (state.IsExpanded)
-                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(buttonWidth)))
-                        for (int i = 0; i < method.GetParameters().Length; i++)
-                        {
-                            var fieldPosition = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth - 8));
-                            state.ParameterValues[i] = RenderParameterField(fieldPosition, method.GetParameters()[i], state.ParameterValues[i]);
-                        }
-            }
-            EditorGUILayout.EndVertical();
+            if (state.IsExpanded)
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(buttonWidth)))
+                    for (int i = 0; i < method.GetParameters().Length; i++)
+                    {
+                        var fieldPosition = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth - 8));
+                        state.ParameterValues[i] = RenderParameterField(fieldPosition, method.GetParameters()[i], state.ParameterValues[i]);
+                    }
         }
 
         /// <summary>
