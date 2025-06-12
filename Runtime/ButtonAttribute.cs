@@ -3,12 +3,6 @@ using UnityEngine;
 
 namespace UnityEssentials
 {
-    /// <summary>
-    /// Specifies the layout options for a button within a user interface.
-    /// </summary>
-    /// <remarks>This enumeration defines the possible positions or alignments for a button. Use <see
-    /// cref="None"/> when no specific layout is required, <see cref="Begin"/>  to position the button at the start, and
-    /// <see cref="End"/> to position it at the end.</remarks>
     public enum ButtonLayout
     {
         None,
@@ -26,24 +20,36 @@ namespace UnityEssentials
     public class ButtonAttribute : Attribute
     {
         public string Label { get; set; }
-        public ButtonLayout Layout { get; }
-        public int Weight { get; }
-        public int Height { get; }
+        public ButtonLayout Layout { get; private set; }
+        public int Weight { get; private set; }
+        public int Height { get; private set; }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ButtonAttribute"/> class,  allowing customization of a button's
-        /// label, layout, weight, and height.
-        /// </summary>
-        /// <param name="label">The text to display on the button. If <see langword="null"/>, a default label may be used.</param>
-        /// <param name="layout">The layout style of the button, specified as a <see cref="ButtonLayout"/> value.  Defaults to <see
-        /// cref="ButtonLayout.None"/>.</param>
-        /// <param name="weight">The relative weight of the button, used for layout purposes. Must be greater than or equal to 1.  Defaults
-        /// to 1.</param>
-        /// <param name="height">The height of the button in pixels. Must be greater than or equal to 0. Defaults to 18.</param>
+        public ButtonAttribute()
+        {
+            Label = null;
+            Layout = ButtonLayout.None;
+            Weight = 1;
+            Height = 28;
+        }
+
         public ButtonAttribute(string label = null, ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 18)
         {
             Label = label;
             Layout = layout;
+            Weight = Mathf.Max(1, weight);
+            Height = Mathf.Max(0, height);
+        }
+
+        public ButtonAttribute(ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 18)
+        {
+            Layout = layout;
+            Weight = Mathf.Max(1, weight);
+            Height = Mathf.Max(0, height);
+        }
+
+        public ButtonAttribute(int weight = 1, int height = 18)
+        {
+            Layout = ButtonLayout.None;
             Weight = Mathf.Max(1, weight);
             Height = Mathf.Max(0, height);
         }
