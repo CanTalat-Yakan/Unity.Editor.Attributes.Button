@@ -29,10 +29,10 @@ namespace UnityEssentials
             Label = null;
             Layout = ButtonLayout.None;
             Weight = 1;
-            Height = 24;
+            Height = 20;
         }
 
-        public ButtonAttribute(string label = null, ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 24)
+        public ButtonAttribute(string label = null, ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 20)
         {
             Label = label;
             Layout = layout;
@@ -40,14 +40,14 @@ namespace UnityEssentials
             Height = Mathf.Max(0, height);
         }
 
-        public ButtonAttribute(ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 24)
+        public ButtonAttribute(ButtonLayout layout = ButtonLayout.None, int weight = 1, int height = 20)
         {
             Layout = layout;
             Weight = Mathf.Max(1, weight);
             Height = Mathf.Max(0, height);
         }
 
-        public ButtonAttribute(int weight = 1, int height = 24)
+        public ButtonAttribute(int weight = 1, int height = 20)
         {
             Layout = ButtonLayout.None;
             Weight = Mathf.Max(1, weight);
