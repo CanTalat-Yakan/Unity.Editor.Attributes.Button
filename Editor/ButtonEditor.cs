@@ -158,8 +158,8 @@ namespace UnityEssentials
         private static void DrawSimpleButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
         {
             var buttonPosition = EditorGUILayout.GetControlRect(GUILayout.Width(width), GUILayout.Height(attribute.Height));
-            var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
-            var keyboardClicked = InspectorFocusHelper.ProcessKeyboardClick(buttonPosition);
+            bool buttonClicked = GUI.Button(buttonPosition, attribute.Label);
+            bool keyboardClicked = InspectorFocusHelper.ProcessKeyboardClick(buttonPosition);
 
             if (buttonClicked || keyboardClicked)
                 InvokeMethod(target, method);
