@@ -159,7 +159,7 @@ namespace UnityEssentials
         {
             var buttonPosition = EditorGUILayout.GetControlRect(GUILayout.Width(width), GUILayout.Height(attribute.Height));
             var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
-            var keyboardClicked = InspectorFocusedHelper.ProcessKeyboardClick(buttonPosition);
+            var keyboardClicked = InspectorFocusHelper.ProcessKeyboardClick(buttonPosition);
 
             if (buttonClicked || keyboardClicked)
                 InvokeMethod(target, method);
@@ -231,7 +231,7 @@ namespace UnityEssentials
 
             var buttonPosition = new Rect(position.x + foldoutOffset, position.y, position.width - foldoutOffset, position.height);
             var buttonClicked = GUI.Button(buttonPosition, attribute.Label);
-            var keyboardClicked = InspectorFocusedHelper.ProcessKeyboardClick(buttonPosition);
+            var keyboardClicked = InspectorFocusHelper.ProcessKeyboardClick(buttonPosition);
             isExpanded = buttonClicked || keyboardClicked;
 
             return isExpanded;
