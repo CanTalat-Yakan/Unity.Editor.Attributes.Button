@@ -131,6 +131,7 @@ namespace UnityEssentials
             bool single = group.Count == 1;
             GUILayout.BeginHorizontal();
             {
+                bool isExpanded = false;
                 float totalWeight = group.Sum(button => button.Attribute.Weight);
                 for (int i = 0; i < group.Count; i++)
                 {
@@ -142,14 +143,17 @@ namespace UnityEssentials
                     width += i - group.Count; // Group correction
                     width += single ? 1 : 0; // Single button correction
 
+                    var offsetFoldout = i != 0;
+
                     // Wrap each button (and its parameter fields) in a vertical layout
                     GUILayout.BeginVertical(GUILayout.Width(width));
                     {
                         if (method.GetParameters().Length > 0)
-                            DrawParameterButton(target, method, attribute, width, i != 0);
+                            DrawParameterButton(target, method, attribute, width, offsetFoldout, out isExpanded);
                         else DrawSimpleButton(target, method, attribute, width);
                     }
                     GUILayout.EndVertical();
+                    GUILayout.Space(isExpanded && offsetFoldout ? -3 : 0);
                 }
             }
             GUILayout.EndHorizontal();
@@ -165,21 +169,32 @@ namespace UnityEssentials
                 InvokeMethod(target, method);
         }
 
-        private static void DrawParameterButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width, bool offsetFoldout)
+        private static GUIStyle _helpBox;
+        private static GUIStyle HelpBox => _helpBox ??= new GUIStyle(EditorStyles.helpBox)
+        {
+            margin = new(20, 0, 0, 0),
+            padding = new(0, 0, 0, 0),
+        };
+
+        private static void DrawParameterButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width, bool offsetFoldout, out bool isExpanded)
         {
             var key = (target, method);
             if (!_parameterStates.TryGetValue(key, out var state))
                 _parameterStates[key] = state = CreateParameterState(method);
 
             float buttonWidth = width;
-            if (RenderButtonHeader(attribute, buttonWidth, state, offsetFoldout, out var isExpanded))
+            if (RenderButtonHeader(attribute, buttonWidth, state, offsetFoldout, out isExpanded))
                 InvokeMethod(target, method, state.ParameterValues);
 
-            if (state.IsExpanded)
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(buttonWidth)))
+            var scopestyle = offsetFoldout ? HelpBox : EditorStyles.helpBox;
+            var layoutWidth = offsetFoldout ? width - 18 : width - 2;
+
+            isExpanded = state.IsExpanded;
+            if (isExpanded)
+                using (new EditorGUILayout.VerticalScope(scopestyle, GUILayout.Width(layoutWidth)))
                     for (int i = 0; i < method.GetParameters().Length; i++)
                     {
-                        var fieldPosition = EditorGUILayout.GetControlRect(GUILayout.Width(buttonWidth - 8));
+                        var fieldPosition = EditorGUILayout.GetControlRect(GUILayout.Width(layoutWidth - 7));
                         state.ParameterValues[i] = RenderParameterField(fieldPosition, method.GetParameters()[i], state.ParameterValues[i]);
                     }
         }
@@ -254,8 +269,8 @@ namespace UnityEssentials
             var none = GUIContent.none;
             var label = ObjectNames.NicifyVariableName(param.Name);
 
-            position.x += EditorGUI.indentLevel * 16 + 16;
-            position.width -= EditorGUI.indentLevel * 16 + 16;
+            position.x += EditorGUI.indentLevel * 16;
+            position.width -= EditorGUI.indentLevel * 16;
 
             object result = null;
             switch (param.ParameterType)
@@ -267,11 +282,10 @@ namespace UnityEssentials
                     result = EditorGUI.FloatField(position, none, value as float? ?? default);
                     break;
                 case Type t when t == typeof(bool):
+                    position.x += 2;
                     result = EditorGUI.Toggle(position, none, value as bool? ?? false);
-
                     position.x += 24;
                     EditorGUI.LabelField(position, label);
-
                     break;
                 case Type t when t == typeof(string):
                     result = EditorGUI.TextField(position, none, value as string ?? string.Empty);
