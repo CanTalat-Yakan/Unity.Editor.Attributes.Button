@@ -64,7 +64,7 @@ namespace UnityEssentials
 
             var currentGroup = new List<(ButtonAttribute, MethodInfo)>();
 
-            InspectorHook.GetAllMethods(out var methods);
+            InspectorHook.GetAllMethods(false, out var methods);
             foreach (var method in methods)
             {
                 if (method.GetCustomAttribute<ButtonAttribute>() is not ButtonAttribute attribute) continue;
