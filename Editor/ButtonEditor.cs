@@ -1,5 +1,4 @@
 #if UNITY_EDITOR
-using Codice.Client.BaseCommands;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -102,7 +101,7 @@ namespace UnityEssentials
                 return;
 
             foreach (var group in _buttonGroups)
-                RenderButtonGroup(group, InspectorHook.Target);
+                RenderButtonGroup(group, InspectorHook.Target as MonoBehaviour);
 
             _buttonGroups.Clear();
         }
