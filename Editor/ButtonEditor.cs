@@ -45,6 +45,7 @@ namespace UnityEssentials
         {
             InspectorHook.AddInitialization(OnInitialize);
             InspectorHook.AddProcessMethod(OnProcessMethod);
+            InspectorHook.AddAfterInspectorGUI(OnAfterInspectorGUI);
         }
 
         /// <summary>
@@ -64,7 +65,7 @@ namespace UnityEssentials
             var currentGroup = new List<(ButtonAttribute, MethodInfo)>();
 
             InspectorHook.GetAllMethods(InspectorHook.Target.GetType(), out var methods);
-            foreach (var method in methods)
+            foreach (var method in methods.ToArray())
             {
                 if (method.GetCustomAttribute<ButtonAttribute>() is not ButtonAttribute attribute) continue;
 
@@ -89,20 +90,36 @@ namespace UnityEssentials
                 _buttonGroups.Add(currentGroup);
         }
 
-        /// <summary>
-        /// Processes the specified method and renders all button groups associated with the current target.
-        /// </summary>
-        /// <remarks>This method iterates through all button groups, renders them for the current target,
-        /// and then clears the button groups collection.</remarks>
-        /// <param name="method">The <see cref="MethodInfo"/> instance representing the method to process.</param>
         private static void OnProcessMethod(MethodInfo method)
         {
+            // We keep this hook so the inspector's method iteration can mark methods as handled/disabled.
+            // Actual button rendering happens in OnAfterInspectorGUI (once per IMGUI pass).
             if (InspectorHook.IsMethodHandled(method))
                 return;
 
-            foreach (var group in _buttonGroups)
-                RenderButtonGroup(group, InspectorHook.Target as MonoBehaviour);
+            // If this method has a ButtonAttribute we consider it handled so other systems don't draw it.
+            if (method.GetCustomAttribute<ButtonAttribute>() != null)
+                InspectorHook.MarkMethodAsHandled(method);
+        }
 
+        private static void OnAfterInspectorGUI()
+        {
+            if (_buttonGroups.Count == 0)
+                return;
+
+            var groupsSnapshot = _buttonGroups.ToArray();
+            var target = InspectorHook.Target as MonoBehaviour;
+
+            for (int i = 0; i < groupsSnapshot.Length; i++)
+            {
+                var group = groupsSnapshot[i];
+                if (group == null)
+                    continue;
+
+                RenderButtonGroup(group, target);
+            }
+
+            // Clear only after rendering from the snapshot.
             _buttonGroups.Clear();
         }
 
@@ -128,7 +145,7 @@ namespace UnityEssentials
 
             bool useHorizontal = group.Count > 1 || group.Any(button => button.Attribute.Layout != ButtonLayout.None);
             bool single = group.Count == 1;
-            GUILayout.BeginHorizontal();
+            using (new EditorGUILayout.HorizontalScope())
             {
                 bool isExpanded = false;
                 float totalWeight = group.Sum(button => button.Attribute.Weight);
@@ -145,17 +162,15 @@ namespace UnityEssentials
                     var offsetFoldout = i != 0;
 
                     // Wrap each button (and its parameter fields) in a vertical layout
-                    GUILayout.BeginVertical(GUILayout.Width(width));
+                    using (new EditorGUILayout.VerticalScope(GUILayout.Width(width)))
                     {
                         if (method.GetParameters().Length > 0)
                             DrawParameterButton(target, method, attribute, width, offsetFoldout, out isExpanded);
                         else DrawSimpleButton(target, method, attribute, width);
                     }
-                    GUILayout.EndVertical();
                     GUILayout.Space(isExpanded && offsetFoldout ? -3 : 0);
                 }
             }
-            GUILayout.EndHorizontal();
         }
 
         private static void DrawSimpleButton(MonoBehaviour target, MethodInfo method, ButtonAttribute attribute, float width)
