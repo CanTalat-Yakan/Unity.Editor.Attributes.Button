@@ -1,7 +1,7 @@
 {
-  "name": "com.unityessentials.buttonattribute",
-  "version": "1.0.0",
-  "displayName": "Unity Editor Attributes Button",
+  "name": "com.unityessentials.editor.attributes.button",
+  "version": "2.0.0",
+  "displayName": "Editor Attributes Button",
   "description": "This is a part of the UnityEssentials Ecosystem",
   "unity": "6000.0",
   "unityRelease": "",
