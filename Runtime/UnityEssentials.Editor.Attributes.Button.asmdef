@@ -1,10 +1,7 @@
 {
-    "name": "UnityEssentials.ButtonAttribute.Editor",
+    "name": "UnityEssentials.Editor.Attributes.Button",
     "rootNamespace": "UnityEssentials",
-    "references": [
-        "GUID:9fb86f0caf7d8a8488cd8aeb21105895",
-        "GUID:e652dc2b5a5451045a50f217499425ea"
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
